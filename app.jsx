@@ -221,6 +221,7 @@ function Hero({ tweaks }) {
   useEffect(() => {
     const root = embersRef.current;
     if (!root) return;
+    if (window.matchMedia('(max-width: 720px)').matches) return;
     root.innerHTML = '';
     const n = 60;
     for (let i = 0; i < n; i++) {
@@ -260,7 +261,7 @@ function Hero({ tweaks }) {
         </defs>
       </svg>
 
-      <img className="hero__img" src="assets/eclipse.png" alt="" />
+      <img className="hero__img" src="assets/eclipse.webp" alt="" />
 
       {/* Additive light layers, anchored to the bright spot */}
       <div className="wash" />

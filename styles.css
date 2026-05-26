@@ -1308,7 +1308,7 @@ em { font-style: italic; }
 .about-bg {
   position: absolute;
   inset: 0;
-  background-image: url("assets/sunset-mountains.png");
+  background-image: url("assets/sunset-mountains.webp");
   background-size: cover;
   background-position: center 70%;
   opacity: 0.18;
@@ -1422,7 +1422,7 @@ em { font-style: italic; }
 .final-cta-bg {
   position: absolute;
   inset: 0;
-  background-image: url("assets/sunset-mountains.png");
+  background-image: url("assets/sunset-mountains.webp");
   background-size: cover;
   background-position: center 60%;
 }
@@ -1550,4 +1550,11 @@ em { font-style: italic; }
   .disc-btn { max-width: none; }
   .footer-top { flex-direction: column; }
   .footer-links { flex-wrap: wrap; gap: 18px; }
+
+  /* Mobile: static hero — kill all animations and GPU-heavy layers */
+  .glow, .ring, .embers, .wash { display: none !important; }
+  .hero svg[aria-hidden="true"] { display: none !important; }
+  .aura, .corona, .core, .rays, .streak,
+  .ring--halo, .ring--rim, .ring--hotspot, .ring--filaments { animation: none !important; }
+  .hero__img { object-position: 30% center; }
 }
