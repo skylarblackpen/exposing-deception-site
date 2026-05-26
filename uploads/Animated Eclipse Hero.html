@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Animated Eclipse Hero</title>
+<style>
+  :root {
+    /* Position of the bright "diamond" point, as % of the image */
+    --gx: 29%;
+    --gy: 39.3%;
+    /* Center + radius of the eclipse disc (tuned to the photo at 16:9) */
+    --dx: 53%;
+    --dy: 50%;
+    --dr: 38vh;
+    /* Solar flare anchor (right-side plume) */
+    --fx: 86%;
+    --fy: 50%;
+    --core: #fff6d8;
+    --hot:  #ffd089;
+    --warm: #ff8a2a;
+    --deep: #ff5510;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: #f5e7c8;
+    overflow: hidden;
+  }
+
+  .hero {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    isolation: isolate;
+    background: #000;
+  }
+
+  /* Base photograph */
+  .hero__img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    z-index: 1;
+  }
+
+  /* Common: every glow layer is anchored to the bright point and additively blended */
+  .glow {
+    position: absolute;
+    left: var(--gx);
+    top: var(--gy);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    mix-blend-mode: screen;
+    z-index: 3;
+    will-change: transform, opacity, filter;
+  }
+
+  /* Wide aurora that bleeds across the whole frame */
+  .aura {
+    width: 220vmax;
+    height: 220vmax;
+    background:
+      radial-gradient(circle at center,
+        rgba(255,236,200,0.55) 0%,
+        rgba(255,170,80,0.32)  6%,
+        rgba(255,110,30,0.18) 14%,
+        rgba(255,80,20,0.10)  24%,
+        rgba(255,60,10,0.05)  36%,
+        rgba(0,0,0,0)         55%);
+    filter: blur(6px);
+    animation: auraPulse 5.2s ease-in-out infinite;
+  }
+  @keyframes auraPulse {
+    0%, 100% { opacity: 0.55; transform: translate(-50%,-50%) scale(1); }
+    50%      { opacity: 0.95; transform: translate(-50%,-50%) scale(1.08); }
+  }
+
+  /* ============================================================
+     CORONA RING — glowing, breathing, moving around the disc
+     ============================================================ */
+  .ring {
+    position: absolute;
+    left: var(--dx);
+    top:  var(--dy);
+    width:  calc(var(--dr) * 2);
+    height: calc(var(--dr) * 2);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    z-index: 2;
+    will-change: transform, opacity, filter;
+  }
+
+  /* Wide outward halo extending into space, breathing */
+  .ring--halo {
+    width:  calc(var(--dr) * 4.6);
+    height: calc(var(--dr) * 4.6);
+    background: radial-gradient(circle at center,
+      rgba(0,0,0,0) 38%,
+      rgba(255,120,40,0.22) 44%,
+      rgba(255,90,25,0.18)  52%,
+      rgba(255,60,10,0.10)  62%,
+      rgba(255,40,0,0.04)   74%,
+      rgba(0,0,0,0) 90%);
+    filter: blur(8px);
+    animation: haloBreathe 5.6s ease-in-out infinite;
+  }
+  @keyframes haloBreathe {
+    0%, 100% { opacity: 0.65; transform: translate(-50%,-50%) scale(calc(0.97 * var(--haloSize, 1))); }
+    50%      { opacity: 1.00; transform: translate(-50%,-50%) scale(calc(1.05 * var(--haloSize, 1))); }
+  }
+
+  /* Fire-wave filter is applied to rim + filaments so the corona edge undulates */
+  .ring--rim,
+  .ring--filaments {
+    filter: url(#firewave) blur(1.4px);
+  }
+
+  /* The fiery rim at the disc edge — hot orange annulus */
+  .ring--rim {
+    width:  calc(var(--dr) * 2.18);
+    height: calc(var(--dr) * 2.18);
+    background: radial-gradient(circle at center,
+      rgba(0,0,0,0) 78%,
+      rgba(255,90,20,0.35)  86%,
+      rgba(255,150,60,0.85) 91%,
+      rgba(255,220,150,0.95) 92.5%,
+      rgba(255,150,60,0.70) 94%,
+      rgba(255,80,15,0.35) 97%,
+      rgba(0,0,0,0) 100%);
+    animation: rimPulse 3.2s ease-in-out infinite;
+  }
+  @keyframes rimPulse {
+    0%, 100% { opacity: calc(0.7 * var(--rimGlow, 1));  transform: translate(-50%,-50%) scale(1); }
+    50%      { opacity: calc(1.0 * var(--rimGlow, 1));  transform: translate(-50%,-50%) scale(1.012); }
+  }
+
+  /* A bright hotspot that orbits around the rim, so light "moves" */
+  .ring--hotspot {
+    width:  calc(var(--dr) * 2.25);
+    height: calc(var(--dr) * 2.25);
+    background: radial-gradient(
+      circle at 50% 8%,
+      rgba(255,235,180,0.85) 0%,
+      rgba(255,160,60,0.55)  3%,
+      rgba(255,90,20,0.25)   7%,
+      rgba(0,0,0,0)         14%);
+    -webkit-mask: radial-gradient(circle at center,
+      transparent 0%, transparent 85%, #000 89%, #000 94%, transparent 99%);
+            mask: radial-gradient(circle at center,
+      transparent 0%, transparent 85%, #000 89%, #000 94%, transparent 99%);
+    filter: blur(2px);
+    animation: hotspotOrbit var(--hotspotSpeed, 14s) linear infinite;
+  }
+  .ring--hotspot-2 {
+    animation: hotspotOrbit calc(var(--hotspotSpeed, 14s) * 1.6) linear infinite reverse;
+    animation-delay: -7s;
+    opacity: 0.7;
+    filter: blur(3px) hue-rotate(-8deg);
+  }
+  @keyframes hotspotOrbit {
+    from { transform: translate(-50%,-50%) rotate(0deg); }
+    to   { transform: translate(-50%,-50%) rotate(360deg); }
+  }
+
+  /* Wispy filaments around the rim — counter-rotating conic shimmer */
+  .ring--filaments {
+    width:  calc(var(--dr) * 2.5);
+    height: calc(var(--dr) * 2.5);
+    background: conic-gradient(
+      from 0deg,
+      rgba(255,140,50,0.0)  0deg,
+      rgba(255,170,80,0.35) 22deg,
+      rgba(255,90,20,0.0)   44deg,
+      rgba(255,80,20,0.0)   88deg,
+      rgba(255,180,90,0.40) 112deg,
+      rgba(255,80,20,0.0)  140deg,
+      rgba(255,80,20,0.0)  188deg,
+      rgba(255,150,60,0.30) 212deg,
+      rgba(255,80,20,0.0)  240deg,
+      rgba(255,80,20,0.0)  290deg,
+      rgba(255,170,80,0.35) 318deg,
+      rgba(255,80,20,0.0)  345deg,
+      rgba(255,80,20,0.0)  360deg);
+    -webkit-mask: radial-gradient(circle at center,
+      transparent 0%, transparent 78%, #000 84%, #000 96%, transparent 100%);
+            mask: radial-gradient(circle at center,
+      transparent 0%, transparent 78%, #000 84%, #000 96%, transparent 100%);
+    opacity: 0.85;
+    animation: filamentsSpin 38s linear infinite, rimPulse 4.4s ease-in-out infinite -1.2s;
+  }
+  @keyframes filamentsSpin {
+    from { transform: translate(-50%,-50%) rotate(0deg); }
+    to   { transform: translate(-50%,-50%) rotate(-360deg); }
+  }
+
+  /* ============================================================
+     OMINOUS SOLAR FLARE on the right edge of the disc
+     ============================================================ */
+  .flare {
+    position: absolute;
+    left: var(--fx);
+    top:  var(--fy);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    mix-blend-mode: screen;
+    z-index: 3;
+    width: 42vh;
+    height: 42vh;
+    background: radial-gradient(circle at 20% 50%,
+      rgba(255,210,140,0.85) 0%,
+      rgba(255,140,50,0.55)  10%,
+      rgba(255,80,20,0.32)   22%,
+      rgba(255,50,10,0.15)   38%,
+      rgba(255,30,5,0.05)    58%,
+      rgba(0,0,0,0) 78%);
+    filter: blur(4px);
+    animation: flareSurge 4.6s ease-in-out infinite;
+  }
+  .flare--core {
+    width: 16vh;
+    height: 16vh;
+    background: radial-gradient(circle at 30% 50%,
+      rgba(255,250,220,0.95) 0%,
+      rgba(255,200,120,0.7)  18%,
+      rgba(255,120,40,0.35)  40%,
+      rgba(0,0,0,0) 75%);
+    animation: flareCore 2.2s ease-in-out infinite;
+  }
+  .flare--tongue {
+    width: 60vh;
+    height: 14vh;
+    background: linear-gradient(90deg,
+      rgba(255,200,110,0.55) 0%,
+      rgba(255,140,50,0.35)  18%,
+      rgba(255,80,20,0.18)   38%,
+      rgba(255,40,5,0.06)    62%,
+      rgba(0,0,0,0) 90%);
+    -webkit-mask: radial-gradient(ellipse at 10% 50%, #000 0%, rgba(0,0,0,0.7) 35%, rgba(0,0,0,0) 75%);
+            mask: radial-gradient(ellipse at 10% 50%, #000 0%, rgba(0,0,0,0.7) 35%, rgba(0,0,0,0) 75%);
+    filter: blur(6px);
+    transform-origin: 10% 50%;
+    animation: flareTongue 5.2s ease-in-out infinite;
+  }
+  @keyframes flareSurge {
+    0%, 100% { opacity: 0.55; transform: translate(-50%,-50%) scale(0.94); }
+    40%      { opacity: 1.00; transform: translate(-50%,-50%) scale(1.12); }
+    70%      { opacity: 0.75; transform: translate(-50%,-50%) scale(1.02); }
+  }
+  @keyframes flareCore {
+    0%, 100% { opacity: 0.7; transform: translate(-50%,-50%) scale(1); filter: blur(0px); }
+    50%      { opacity: 1.0; transform: translate(-50%,-50%) scale(1.18); filter: blur(1px); }
+  }
+  @keyframes flareTongue {
+    0%, 100% { opacity: 0.35; transform: translate(-50%,-50%) scaleX(0.8) rotate(-2deg); }
+    50%      { opacity: 0.85; transform: translate(-50%,-50%) scaleX(1.15) rotate(3deg); }
+  }
+
+  /* Mid corona */
+  .corona {
+    width: 90vmax;
+    height: 90vmax;
+    background:
+      radial-gradient(circle at center,
+        rgba(255,250,225,0.95) 0%,
+        rgba(255,205,130,0.70) 3%,
+        rgba(255,140,50,0.40)  9%,
+        rgba(255,90,20,0.15)  20%,
+        rgba(0,0,0,0)         40%);
+    filter: blur(2px);
+    animation: coronaPulse 3.6s ease-in-out infinite;
+  }
+  @keyframes coronaPulse {
+    0%, 100% { opacity: 0.75; transform: translate(-50%,-50%) scale(0.96); }
+    50%      { opacity: 1;    transform: translate(-50%,-50%) scale(1.06); }
+  }
+
+  /* Tight hot core */
+  .core {
+    width: 22vmax;
+    height: 22vmax;
+    background:
+      radial-gradient(circle at center,
+        #ffffff 0%,
+        #fff3c8 8%,
+        #ffd07a 18%,
+        rgba(255,150,40,0.7) 30%,
+        rgba(255,90,20,0.25) 50%,
+        rgba(0,0,0,0) 72%);
+    animation: coreFlicker 2.4s ease-in-out infinite;
+  }
+  @keyframes coreFlicker {
+    0%, 100% { opacity: 0.85; transform: translate(-50%,-50%) scale(1); filter: blur(0px); }
+    35%      { opacity: 1;    transform: translate(-50%,-50%) scale(1.07); filter: blur(0.5px); }
+    65%      { opacity: 0.92; transform: translate(-50%,-50%) scale(0.97); filter: blur(0px); }
+  }
+
+  /* Star burst — conic gradient gives sharp rays we can rotate */
+  .rays {
+    width: 180vmax;
+    height: 180vmax;
+    background:
+      conic-gradient(from 0deg,
+        rgba(255,230,180,0)   0deg,
+        rgba(255,230,180,0.55) 2deg,
+        rgba(255,230,180,0)   8deg,
+        rgba(255,230,180,0)  42deg,
+        rgba(255,210,140,0.45) 45deg,
+        rgba(255,210,140,0)  50deg,
+        rgba(255,230,180,0)  88deg,
+        rgba(255,240,200,0.6) 90deg,
+        rgba(255,240,200,0)  94deg,
+        rgba(255,230,180,0) 132deg,
+        rgba(255,210,140,0.45) 135deg,
+        rgba(255,210,140,0) 140deg,
+        rgba(255,230,180,0) 178deg,
+        rgba(255,230,180,0.55) 180deg,
+        rgba(255,230,180,0) 186deg,
+        rgba(255,230,180,0) 222deg,
+        rgba(255,210,140,0.45) 225deg,
+        rgba(255,210,140,0) 230deg,
+        rgba(255,230,180,0) 268deg,
+        rgba(255,240,200,0.6) 270deg,
+        rgba(255,240,200,0) 274deg,
+        rgba(255,230,180,0) 312deg,
+        rgba(255,210,140,0.45) 315deg,
+        rgba(255,210,140,0) 320deg,
+        rgba(255,230,180,0) 358deg,
+        rgba(255,230,180,0)  360deg);
+    /* Fade out into space */
+    -webkit-mask-image: radial-gradient(circle at center, #000 0%, #000 4%, rgba(0,0,0,0.55) 14%, rgba(0,0,0,0) 38%);
+            mask-image: radial-gradient(circle at center, #000 0%, #000 4%, rgba(0,0,0,0.55) 14%, rgba(0,0,0,0) 38%);
+    filter: blur(1.2px);
+    opacity: 0.85;
+    animation: raysSpin 60s linear infinite, raysPulse 3.6s ease-in-out infinite;
+  }
+  @keyframes raysSpin {
+    from { transform: translate(-50%,-50%) rotate(0deg); }
+    to   { transform: translate(-50%,-50%) rotate(360deg); }
+  }
+  @keyframes raysPulse {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1;    }
+  }
+
+  /* Secondary, finer star pattern, counter-rotating for shimmer */
+  .rays--fine {
+    width: 140vmax;
+    height: 140vmax;
+    background:
+      conic-gradient(from 0deg,
+        rgba(255,245,210,0) 0deg,   rgba(255,245,210,0.7) 1deg, rgba(255,245,210,0) 3deg,
+        rgba(255,245,210,0) 29deg,  rgba(255,225,170,0.4) 30deg, rgba(255,225,170,0) 32deg,
+        rgba(255,245,210,0) 59deg,  rgba(255,245,210,0.55)60deg, rgba(255,245,210,0) 62deg,
+        rgba(255,245,210,0) 89deg,  rgba(255,225,170,0.4) 90deg, rgba(255,225,170,0) 92deg,
+        rgba(255,245,210,0) 119deg, rgba(255,245,210,0.55)120deg,rgba(255,245,210,0) 122deg,
+        rgba(255,245,210,0) 149deg, rgba(255,225,170,0.4) 150deg,rgba(255,225,170,0) 152deg,
+        rgba(255,245,210,0) 179deg, rgba(255,245,210,0.7)180deg, rgba(255,245,210,0) 182deg,
+        rgba(255,245,210,0) 209deg, rgba(255,225,170,0.4) 210deg,rgba(255,225,170,0) 212deg,
+        rgba(255,245,210,0) 239deg, rgba(255,245,210,0.55)240deg,rgba(255,245,210,0) 242deg,
+        rgba(255,245,210,0) 269deg, rgba(255,225,170,0.4) 270deg,rgba(255,225,170,0) 272deg,
+        rgba(255,245,210,0) 299deg, rgba(255,245,210,0.55)300deg,rgba(255,245,210,0) 302deg,
+        rgba(255,245,210,0) 329deg, rgba(255,225,170,0.4) 330deg,rgba(255,225,170,0) 332deg,
+        rgba(255,245,210,0) 360deg);
+    -webkit-mask-image: radial-gradient(circle at center, #000 0%, #000 3%, rgba(0,0,0,0.6) 10%, rgba(0,0,0,0) 30%);
+            mask-image: radial-gradient(circle at center, #000 0%, #000 3%, rgba(0,0,0,0.6) 10%, rgba(0,0,0,0) 30%);
+    filter: blur(0.6px);
+    opacity: 0.7;
+    animation: raysSpinReverse 90s linear infinite, raysPulse 2.8s ease-in-out infinite -0.6s;
+  }
+  @keyframes raysSpinReverse {
+    from { transform: translate(-50%,-50%) rotate(0deg); }
+    to   { transform: translate(-50%,-50%) rotate(-360deg); }
+  }
+
+  /* Lens flare streak, horizontal */
+  .streak {
+    width: 200vmax;
+    height: 3vmax;
+    background:
+      linear-gradient(90deg,
+        rgba(0,0,0,0) 0%,
+        rgba(255,200,120,0.0) 35%,
+        rgba(255,235,190,0.55) 49%,
+        rgba(255,255,235,0.85) 50%,
+        rgba(255,235,190,0.55) 51%,
+        rgba(255,200,120,0.0) 65%,
+        rgba(0,0,0,0) 100%);
+    filter: blur(2px);
+    animation: streakBreathe 5s ease-in-out infinite;
+  }
+  @keyframes streakBreathe {
+    0%, 100% { opacity: 0.35; transform: translate(-50%,-50%) scaleY(0.7); }
+    50%      { opacity: 0.85; transform: translate(-50%,-50%) scaleY(1.4); }
+  }
+  .streak--v {
+    width: 3vmax;
+    height: 200vmax;
+    background:
+      linear-gradient(180deg,
+        rgba(0,0,0,0) 0%,
+        rgba(255,200,120,0.0) 35%,
+        rgba(255,235,190,0.55) 49%,
+        rgba(255,255,235,0.85) 50%,
+        rgba(255,235,190,0.55) 51%,
+        rgba(255,200,120,0.0) 65%,
+        rgba(0,0,0,0) 100%);
+    animation: streakBreatheV 5.5s ease-in-out infinite -0.7s;
+  }
+  @keyframes streakBreatheV {
+    0%, 100% { opacity: 0.25; transform: translate(-50%,-50%) scaleX(0.7); }
+    50%      { opacity: 0.75; transform: translate(-50%,-50%) scaleX(1.4); }
+  }
+
+  /* Outer wash — slow, very wide warm tint emanating outward */
+  .wash {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    mix-blend-mode: screen;
+    background:
+      radial-gradient(circle at var(--gx) var(--gy),
+        rgba(255,170,80,0.18) 0%,
+        rgba(255,120,40,0.10) 25%,
+        rgba(255,80,20,0.06)  45%,
+        rgba(255,60,10,0.03)  65%,
+        rgba(0,0,0,0)         85%);
+    animation: washPulse 8s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes washPulse {
+    0%, 100% { opacity: 0.7; }
+    50%      { opacity: 1;   }
+  }
+
+  /* Concentric shockwave rings that emit outward forever */
+  .wave {
+    position: absolute;
+    left: var(--gx);
+    top: var(--gy);
+    width: 4vmax;
+    height: 4vmax;
+    border-radius: 50%;
+    border: 1px solid rgba(255,200,120,0.7);
+    transform: translate(-50%,-50%);
+    mix-blend-mode: screen;
+    pointer-events: none;
+    z-index: 3;
+    filter: blur(0.6px);
+    animation: waveOut 6s ease-out infinite;
+    box-shadow:
+      0 0 30px rgba(255,170,70,0.45),
+      inset 0 0 30px rgba(255,200,120,0.35);
+  }
+  .wave--2 { animation-delay: -2s; }
+  .wave--3 { animation-delay: -4s; }
+  @keyframes waveOut {
+    0%   { width: 4vmax;   height: 4vmax;   opacity: 0.0; border-width: 2px; }
+    8%   { opacity: 0.9; }
+    100% { width: 220vmax; height: 220vmax; opacity: 0;   border-width: 0.5px; }
+  }
+
+  /* Slight vignette so the glow reads against the edges */
+  .vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+  }
+
+  /* Floating embers */
+  .embers {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    mix-blend-mode: screen;
+  }
+  .ember {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #ffd089;
+    box-shadow:
+      0 0 6px rgba(255,180,90,0.9),
+      0 0 14px rgba(255,120,40,0.6);
+    opacity: 0;
+    animation: emberDrift var(--d, 9s) linear infinite;
+    animation-delay: var(--delay, 0s);
+    left: var(--gx);
+    top:  var(--gy);
+  }
+  @keyframes emberDrift {
+    0%   { transform: translate(-50%,-50%) translate(0,0) scale(0.6); opacity: 0; }
+    10%  { opacity: 1; }
+    80%  { opacity: 0.7; }
+    100% { transform: translate(-50%,-50%) translate(var(--tx), var(--ty)) scale(1.2); opacity: 0; }
+  }
+
+  /* HUD copy */
+  .hud {
+    position: absolute;
+    z-index: 10;
+    left: 0; right: 0;
+    pointer-events: none;
+    display: flex;
+    justify-content: space-between;
+    padding: 28px 36px;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(245,225,180,0.65);
+  }
+  .hud--top    { top: 0; }
+  .hud--bottom { bottom: 0; align-items: flex-end; }
+  .hud .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #ffb060;
+    box-shadow: 0 0 8px #ff8030;
+    margin-right: 8px;
+    vertical-align: middle;
+    animation: blip 1.6s ease-in-out infinite;
+  }
+  @keyframes blip {
+    0%,100% { opacity: 0.35; transform: scale(0.85); }
+    50%     { opacity: 1;    transform: scale(1.1); }
+  }
+
+  .title {
+    position: absolute;
+    z-index: 10;
+    right: 6%;
+    bottom: 14%;
+    text-align: right;
+    pointer-events: none;
+    font-family: "Times New Roman", Times, serif;
+    color: #fff;
+    text-shadow: 0 2px 30px rgba(255,140,40,0.35);
+  }
+  .title h1 {
+    margin: 0;
+    font-weight: 400;
+    font-size: clamp(34px, 6vw, 92px);
+    letter-spacing: 0.02em;
+    line-height: 0.95;
+  }
+  .title h1 em {
+    font-style: italic;
+    color: #ffd089;
+  }
+  .title p {
+    margin: 14px 0 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(245,225,180,0.7);
+  }
+
+  /* ============================================================
+     TWEAKS PANEL
+     ============================================================ */
+  .tweaks {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 1000;
+    width: 280px;
+    background: rgba(14,9,5,0.86);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,170,80,0.22);
+    border-radius: 12px;
+    color: #f5e7c8;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03) inset;
+    user-select: none;
+  }
+  .tweaks[hidden] { display: none; }
+  .tweaks__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,170,80,0.15);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 10px;
+    color: rgba(255,210,160,0.9);
+  }
+  .tweaks__close {
+    appearance: none;
+    background: transparent;
+    border: 1px solid rgba(255,170,80,0.25);
+    color: #f5e7c8;
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1;
+    font-size: 14px;
+  }
+  .tweaks__close:hover { background: rgba(255,170,80,0.12); }
+  .tweaks__body {
+    padding: 10px 14px 14px;
+    display: grid;
+    gap: 12px;
+  }
+  .tweak {
+    display: grid;
+    gap: 6px;
+  }
+  .tweak__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .tweak__label {
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: rgba(245,225,180,0.75);
+  }
+  .tweak__val {
+    font-variant-numeric: tabular-nums;
+    color: #ffd089;
+    font-size: 10px;
+  }
+  .tweak input[type="range"] {
+    width: 100%;
+    appearance: none;
+    background: transparent;
+    height: 18px;
+    cursor: pointer;
+  }
+  .tweak input[type="range"]::-webkit-slider-runnable-track {
+    height: 2px;
+    background: linear-gradient(90deg, rgba(255,170,80,0.55), rgba(255,170,80,0.15));
+    border-radius: 1px;
+  }
+  .tweak input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #ffd089;
+    margin-top: -5px;
+    box-shadow: 0 0 8px rgba(255,180,90,0.8);
+  }
+  .tweak input[type="range"]::-moz-range-track {
+    height: 2px;
+    background: rgba(255,170,80,0.35);
+  }
+  .tweak input[type="range"]::-moz-range-thumb {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #ffd089;
+    border: none;
+    box-shadow: 0 0 8px rgba(255,180,90,0.8);
+  }
+  .tweak__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .tweak__toggle input { accent-color: #ffb060; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SVG fire-wave displacement filter applied to the rim and filaments -->
+<svg width="0" height="0" style="position:absolute;width:0;height:0" aria-hidden="true">
+  <defs>
+    <filter id="firewave" x="-25%" y="-25%" width="150%" height="150%" filterUnits="objectBoundingBox">
+      <feTurbulence id="firewave-turb" type="fractalNoise" baseFrequency="0.014 0.022" numOctaves="2" seed="1" result="t">
+        <animate id="firewave-anim" attributeName="seed" from="1" to="80" dur="6s" repeatCount="indefinite"/>
+      </feTurbulence>
+      <feDisplacementMap id="firewave-disp" in="SourceGraphic" in2="t" scale="14" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+  <section class="hero" aria-label="Animated eclipse hero">
+    <img class="hero__img" src="assets/eclipse.png" alt="" />
+
+    <!-- additive light layers, anchored to the bright spot -->
+    <div class="wash"></div>
+    <div class="glow aura"></div>
+
+    <!-- Corona ring around the eclipse disc -->
+    <div class="ring ring--halo"></div>
+    <div class="ring ring--rim"></div>
+    <div class="ring ring--hotspot"></div>
+    <div class="ring ring--hotspot ring--hotspot-2"></div>
+    <div class="ring ring--filaments"></div>
+
+    <!-- Ominous right-side solar flare -->
+    <!-- (removed per user feedback) -->
+
+    <div class="glow corona"></div>
+    <div class="glow rays"></div>
+    <div class="glow rays rays--fine"></div>
+    <div class="glow streak"></div>
+    <div class="glow streak streak--v"></div>
+    <div class="glow core"></div>
+
+    <div class="embers" id="embers"></div>
+
+    <div class="vignette"></div>
+
+    <header class="hud hud--top">
+      <span><span class="dot"></span>BLACKSUN / OBS-04</span>
+      <span>RA 06h 45m · DEC −16° 42′</span>
+    </header>
+
+    <div class="title">
+      <h1>The <em>Black</em><br/>Sun</h1>
+      <p>totality · t&nbsp;+&nbsp;00:00:14</p>
+    </div>
+
+    <footer class="hud hud--bottom">
+      <span>λ 550nm · corona temp 1.1 × 10⁶ K</span>
+      <span>live · uplink stable</span>
+    </footer>
+  </section>
+
+  <!-- Tweaks panel -->
+  <aside class="tweaks" id="tweaks" hidden aria-label="Tweaks">
+    <div class="tweaks__head">
+      <span>Tweaks</span>
+      <button class="tweaks__close" id="tweaksClose" aria-label="Close tweaks">×</button>
+    </div>
+    <div class="tweaks__body">
+      <div class="tweak">
+        <div class="tweak__row"><span class="tweak__label">Fire Wave</span><span class="tweak__val" id="v-fireWave"></span></div>
+        <input type="range" id="t-fireWave" min="0" max="40" step="1">
+      </div>
+      <div class="tweak">
+        <div class="tweak__row"><span class="tweak__label">Wave Speed</span><span class="tweak__val" id="v-waveSpeed"></span></div>
+        <input type="range" id="t-waveSpeed" min="1.5" max="14" step="0.5">
+      </div>
+      <div class="tweak">
+        <div class="tweak__row"><span class="tweak__label">Rim Glow</span><span class="tweak__val" id="v-rimGlow"></span></div>
+        <input type="range" id="t-rimGlow" min="0.2" max="1.6" step="0.05">
+      </div>
+      <div class="tweak">
+        <div class="tweak__row"><span class="tweak__label">Halo Size</span><span class="tweak__val" id="v-haloSize"></span></div>
+        <input type="range" id="t-haloSize" min="0.7" max="1.6" step="0.05">
+      </div>
+      <div class="tweak">
+        <div class="tweak__row"><span class="tweak__label">Hotspot Speed</span><span class="tweak__val" id="v-hotspotSpeed"></span></div>
+        <input type="range" id="t-hotspotSpeed" min="3" max="40" step="1">
+      </div>
+      <div class="tweak">
+        <div class="tweak__row"><span class="tweak__label">Embers</span><span class="tweak__val" id="v-embers"></span></div>
+        <input type="range" id="t-embers" min="0" max="80" step="1">
+      </div>
+      <div class="tweak">
+        <label class="tweak__toggle"><input type="checkbox" id="t-showHud"> <span class="tweak__label">Show HUD</span></label>
+      </div>
+      <div class="tweak">
+        <label class="tweak__toggle"><input type="checkbox" id="t-showTitle"> <span class="tweak__label">Show Title</span></label>
+      </div>
+    </div>
+  </aside>
+
+<script>
+  /* Spawn embers — initial set replaced by applyEmbers(T.embers) below */
+</script>
+<script>
+  /* ============================================================
+     TWEAKS — defaults persisted via EDITMODE block
+     ============================================================ */
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "fireWave": 14,
+    "waveSpeed": 3.5,
+    "rimGlow": 1,
+    "haloSize": 0.7,
+    "hotspotSpeed": 3,
+    "embers": 80,
+    "showHud": false,
+    "showTitle": false
+  }/*EDITMODE-END*/;
+  const T = { ...TWEAK_DEFAULTS };
+
+  /* ---- Apply tweak values to the DOM ---- */
+  function applyFireWave(v)   {
+    const disp = document.getElementById('firewave-disp');
+    if (disp) disp.setAttribute('scale', String(v));
+  }
+  function applyWaveSpeed(v)  {
+    const anim = document.getElementById('firewave-anim');
+    if (anim) {
+      anim.setAttribute('dur', v + 's');
+      // restart so dur takes effect
+      try { anim.beginElement(); } catch (_) {}
+    }
+  }
+  function applyRimGlow(v)    { document.documentElement.style.setProperty('--rimGlow', v); }
+  function applyHaloSize(v)   { document.documentElement.style.setProperty('--haloSize', v); }
+  function applyHotspotSpeed(v) {
+    document.documentElement.style.setProperty('--hotspotSpeed', v + 's');
+  }
+  function applyShowHud(v)    {
+    document.querySelectorAll('.hud').forEach(el => el.style.display = v ? '' : 'none');
+  }
+  function applyShowTitle(v)  {
+    const el = document.querySelector('.title');
+    if (el) el.style.display = v ? '' : 'none';
+  }
+  function applyEmbers(n) {
+    const root = document.getElementById('embers');
+    if (!root) return;
+    root.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const e = document.createElement('span');
+      e.className = 'ember';
+      const angle = Math.random() * Math.PI * 2;
+      const bias = (Math.random() < 0.55) ? (Math.PI * 1.05 + (Math.random() - 0.5) * 0.9) : angle;
+      const dist = 30 + Math.random() * 90;
+      const tx = Math.cos(bias) * dist;
+      const ty = Math.sin(bias) * dist;
+      const dur = 6 + Math.random() * 8;
+      const delay = -Math.random() * dur;
+      const size = 2 + Math.random() * 3;
+      e.style.setProperty('--tx', tx + 'vw');
+      e.style.setProperty('--ty', ty + 'vw');
+      e.style.setProperty('--d',  dur + 's');
+      e.style.setProperty('--delay', delay + 's');
+      e.style.width  = size + 'px';
+      e.style.height = size + 'px';
+      root.appendChild(e);
+    }
+  }
+
+  const APPLY = {
+    fireWave: applyFireWave,
+    waveSpeed: applyWaveSpeed,
+    rimGlow: applyRimGlow,
+    haloSize: applyHaloSize,
+    hotspotSpeed: applyHotspotSpeed,
+    embers: applyEmbers,
+    showHud: applyShowHud,
+    showTitle: applyShowTitle,
+  };
+
+  function applyAll() {
+    for (const k in APPLY) APPLY[k](T[k]);
+  }
+
+  /* ---- Wire up panel controls ---- */
+  function bindRange(key) {
+    const input = document.getElementById('t-' + key);
+    const val   = document.getElementById('v-' + key);
+    if (!input) return;
+    input.value = T[key];
+    if (val) val.textContent = T[key];
+    input.addEventListener('input', () => {
+      const v = parseFloat(input.value);
+      T[key] = v;
+      if (val) val.textContent = v;
+      APPLY[key](v);
+      persist({ [key]: v });
+    });
+  }
+  function bindToggle(key) {
+    const input = document.getElementById('t-' + key);
+    if (!input) return;
+    input.checked = !!T[key];
+    input.addEventListener('change', () => {
+      const v = input.checked;
+      T[key] = v;
+      APPLY[key](v);
+      persist({ [key]: v });
+    });
+  }
+
+  function persist(edits) {
+    try {
+      window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+    } catch (_) {}
+  }
+
+  ['fireWave','waveSpeed','rimGlow','haloSize','hotspotSpeed','embers'].forEach(bindRange);
+  ['showHud','showTitle'].forEach(bindToggle);
+
+  /* ---- Tweaks panel show / hide via host protocol ---- */
+  const panel = document.getElementById('tweaks');
+  const closeBtn = document.getElementById('tweaksClose');
+
+  function showPanel() { panel.hidden = false; }
+  function hidePanel() {
+    panel.hidden = true;
+    try { window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*'); } catch (_) {}
+  }
+  closeBtn.addEventListener('click', hidePanel);
+
+  // Register listener BEFORE announcing availability
+  window.addEventListener('message', (e) => {
+    const t = e.data && e.data.type;
+    if (t === '__activate_edit_mode') showPanel();
+    else if (t === '__deactivate_edit_mode') hidePanel();
+  });
+  try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch (_) {}
+
+  // Initial apply
+  applyAll();
+</script>
+</body>
+</html>
