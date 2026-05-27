@@ -124,6 +124,7 @@ function Nav() {
 
 const CHAPTER_ONE_URL = "https://drive.google.com/file/d/1xFiWvFQgY7X4vpJAIp-OzL_kKo-GIfuh/view?usp=sharing";
 const SUBSCRIBE_ENDPOINT = "/api/subscribe";
+const AMAZON_URL = "https://www.amazon.com/dp/B0FV8JT8BZ";
 
 // === EMAIL CAPTURE (reusable) ===
 function EmailCapture({
@@ -545,6 +546,29 @@ function FinalCTA() {
   );
 }
 
+// === BUY SECTION ===
+function BuySection() {
+  return (
+    <section className="buy-section" id="buy">
+      <div className="wrap">
+        <div className="buy-inner reveal">
+          <div className="buy-book">
+            <img src="assets/book-mockup.webp" alt="Exposing Deception by Steve Mohr" />
+          </div>
+          <div className="buy-text">
+            <div className="eyebrow">Available now</div>
+            <h2>Get the <em>full book</em>.</h2>
+            <p>Print and digital editions available on Amazon. Read the complete guide to biblical discernment at your own pace.</p>
+            <a href={AMAZON_URL} target="_blank" rel="noopener noreferrer" className="btn-primary buy-btn">
+              Buy on Amazon <span className="arr">→</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // === FOOTER ===
 function Footer() {
   return (
@@ -560,8 +584,13 @@ function Footer() {
             <li><a href="#about">About Steve</a></li>
             <li><a href="#book">The Book</a></li>
             <li><a href="#blog">Blog</a></li>
-            <li><a href="#contact">Contact</a></li>
           </ul>
+          <div className="footer-contact">
+            <div className="footer-contact-label">Get in touch</div>
+            <a href="mailto:RevsMohr@msn.com" className="footer-email">
+              RevsMohr@msn.com
+            </a>
+          </div>
         </div>
         <div className="footer-base">
           <span>© 2026 Steve Mohr. All rights reserved.</span>
@@ -629,6 +658,7 @@ function App() {
       <Reviews />
       {tweaks.showQuiz && <Discernment />}
       <About />
+      <BuySection />
       <FinalCTA />
       <Footer />
       <StevePanel tweaks={tweaks} setTweak={setTweak} />
