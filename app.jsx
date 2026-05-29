@@ -115,6 +115,7 @@ function Nav() {
           <li><a href="#about">About Steve</a></li>
           <li><a href="#book">The Book</a></li>
           <li><a href="#blog">Blog</a></li>
+          <li><a href="#speaking">Speaking</a></li>
           <li><a href="#contact">Contact</a></li>
         </ul>
       </div>
@@ -546,6 +547,39 @@ function FinalCTA() {
   );
 }
 
+// === SPEAKING ===
+function Speaking() {
+  return (
+    <section className="speaking" id="speaking" data-screen-label="05 Speaking">
+      <div className="speaking-bg" />
+      <div className="wrap">
+        <div className="speaking-inner reveal">
+          <div className="speaking-text">
+            <div className="eyebrow">Invite Steve to speak</div>
+            <h2>Bring this message to your <em>church or gathering</em>.</h2>
+            <p>Steve is available to teach or preach on the themes of <em>Exposing Deception</em> — biblical discernment, standing firm in truth, and equipping the Church to recognize and resist deception.</p>
+            <ul className="speaking-venues">
+              <li><span className="check">{Icons.check}</span><span>Churches &amp; congregations</span></li>
+              <li><span className="check">{Icons.check}</span><span>Conferences &amp; seminars</span></li>
+              <li><span className="check">{Icons.check}</span><span>Retreats</span></li>
+              <li><span className="check">{Icons.check}</span><span>Any type of gathering</span></li>
+            </ul>
+            <a href="mailto:RevsMohr@msn.com?subject=Speaking%20Inquiry" className="btn-primary speaking-btn">
+              {Icons.mail} Reach out about speaking
+            </a>
+            <p className="speaking-note">Contact Steve directly at <a href="mailto:RevsMohr@msn.com" className="speaking-email">RevsMohr@msn.com</a></p>
+          </div>
+          <div className="speaking-quote">
+            <div className="qmark">"</div>
+            <p>After nearly fifty years of ministry, the most urgent work left is helping people discern what is true — and giving them the courage to hold on to it.</p>
+            <p className="speaking-attr">— Steve Mohr</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // === BUY SECTION ===
 function BuySection() {
   return (
@@ -659,6 +693,7 @@ function App() {
       {tweaks.showQuiz && <Discernment />}
       <About />
       <BuySection />
+      <Speaking />
       <FinalCTA />
       <Footer />
       <StevePanel tweaks={tweaks} setTweak={setTweak} />
